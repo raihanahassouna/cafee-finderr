@@ -1,37 +1,30 @@
-let map;
-let service;
+// 1. Initialiser la carte sur Casablanca
+// [Latitude, Longitude], Zoom (13 est idéal pour une ville)
+const map = L.map('map').setView([33.5731, -7.5898], 13);
 
-function initMap() {
-    // Coordinates for Casablanca
-    const casablanca = { lat: 33.5731, lng: -7.5898 };
+// 2. Charger les images de la carte (OpenStreetMap - Gratuit)
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© OpenStreetMap contributors'
+}).addTo(map);
 
-    map = new google.maps.Map(document.getElementById("map"), {
-        zoom: 14,
-        center: casablanca,
-    });
+// 3. Chercher les cafés à Casablanca via l'API Overpass (Gratuit)
+function chargerCafes() {
+    // Cette requête cherche les "amenity=cafe" dans la zone de Casablanca
+    const query = `[out:json];node["amenity"="cafe"](33.55,-7.65,33.60,-7.50);out;`;
+    const url = "https://overpass-api.de/api/interpreter?data=" + encodeURIComponent(query);
 
-    const request = {
-        location: casablanca,
-        radius: '1000', // Search within 1km
-        type: ['cafe']
-    };
-
-    service = new google.maps.places.PlacesService(map);
-    service.nearbySearch(request, callback);
+    fetch(url)
+        .then(response => response.json())
+        .then(data => {
+            data.elements.forEach(cafe => {
+                if (cafe.lat && cafe.lon) {
+                    L.marker([cafe.lat, cafe.lon]).addTo(map)
+                        .bindPopup(cafe.tags.name || "Café sans nom");
+                }
+            });
+        })
+        .catch(error => console.error("Erreur de chargement des cafés:", error));
 }
 
-function callback(results, status) {
-    if (status === google.maps.places.PlacesServiceStatus.OK) {
-        for (let i = 0; i < results.length; i++) {
-            createMarker(results[i]);
-        }
-    }
-}
-
-function createMarker(place) {
-    new google.maps.Marker({
-        map,
-        position: place.geometry.location,
-        title: place.name
-    });
-}
+// Lancer la recherche
+chargerCafes();
